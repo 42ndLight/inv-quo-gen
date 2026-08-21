@@ -7,8 +7,8 @@ CREATE TABLE vendors (
     name VARCHAR(255) NOT NULL, -- e.g., "Dean.K Plants and Materials"
     tagline VARCHAR(255),       -- e.g., "Heavy Equipment Hire - Plant & Machinery"
     location VARCHAR(255),      -- e.g., "Juja, Kiambu County"
-    phone VARCHAR(50),          -- e.g., "+254 716 874 161"
-    email VARCHAR(255)          -- e.g., "DeanKinyanjuik@gmail.com"
+    phone VARCHAR(50),          -- e.g., "+2547000000invoi"
+    email VARCHAR(255)          -- e.g., "Dea@gmail.com"
 );
 
 -- Client address book
