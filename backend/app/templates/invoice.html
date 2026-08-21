@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>{{ doc.doc_type }} - {{ doc.reference_no }}</title>
+<style>
+    @page {
+        size: A4;
+        margin: 1.5cm 1.5cm 2cm 1.5cm;
+        @bottom-left {
+            content: "{{ doc.vendor.location }} | Phone: {{ doc.vendor.phone }} | Email: {{ doc.vendor.email }}";
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-size: 8pt;
+            color: #64748b;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 8px;
+        }
+        @bottom-right {
+            content: "{{ doc.reference_no }}";
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-size: 8pt;
+            font-weight: bold;
+            color: #334155;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 8px;
+        }
+    }
+
+    body {
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        color: #1e293b;
+        font-size: 10pt;
+        line-height: 1.5;
+        margin: 0;
+        padding: 0;
+    }
+
+    /* Header styling */
+    .header-container {
+        border-bottom: 2px solid #cbd5e1;
+        padding-bottom: 20px;
+        margin-bottom: 25px;
+    }
+
+    .vendor-info {
+        float: left;
+        width: 60%;
+    }
+
+    .vendor-name {
+        font-size: 16pt;
+        font-weight: bold;
+        text-transform: uppercase;
+        color: #0f172a;
+        margin: 0 0 2px 0;
+    }
+
+    .vendor-tagline {
+        font-size: 10pt;
+        font-weight: bold;
+        color: #4f46e5;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin: 0 0 10px 0;
+    }
+
+    .vendor-details {
+        font-size: 8.5pt;
+        color: #475569;
+        line-height: 1.4;
+    }
+
+    .doc-meta {
+        float: right;
+        width: 35%;
+        text-align: right;
+    }
+
+    .doc-type {
+        font-size: 18pt;
+        font-weight: 900;
+        color: #4f46e5;
+        text-transform: uppercase;
+        border: 1px solid #e2e8f0;
+        background-color: #f8fafc;
+        padding: 5px 12px;
+        display: inline-block;
+        border-radius: 6px;
+        margin-bottom: 12px;
+        letter-spacing: 1px;
+    }
+
+    .doc-type.invoice {
+        color: #059669;
+        background-color: #ecfdf5;
+        border-color: #a7f3d0;
+    }
+
+    .meta-item {
+        font-size: 9pt;
+        margin-bottom: 4px;
+    }
+
+    .meta-label {
+        color: #64748b;
+        text-transform: uppercase;
+        font-size: 7.5pt;
+        font-weight: bold;
+    }
+
+    .meta-value {
+        font-weight: bold;
+        color: #0f172a;
+    }
+
+    .clearfix::after {
+        content: "";
+        clear: both;
+        display: table;
+    }
+
+    /* Client section */
+    .client-card {
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 12px 15px;
+        margin-bottom: 25px;
+    }
+
+    .client-title {
+        font-size: 7.5pt;
+        font-weight: bold;
+        color: #94a3b8;
+        text-transform: uppercase;
+        margin: 0 0 8px 0;
+        letter-spacing: 0.5px;
+    }
+
+    .client-left {
+        float: left;
+        width: 55%;
+    }
+
+    .client-right {
+        float: right;
+        width: 40%;
+        text-align: right;
+    }
+
+    /* Table styling */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 25px;
+    }
+
+    th {
+        background-color: #f1f5f9;
+        color: #475569;
+        font-weight: bold;
+        font-size: 8pt;
+        text-transform: uppercase;
+        padding: 8px 10px;
+        border: 1px solid #cbd5e1;
+    }
+
+    td {
+        padding: 8px 10px;
+        border: 1px solid #e2e8f0;
+        font-size: 9pt;
+    }
+
+    .col-num {
+        width: 5%;
+        text-align: center;
+        color: #64748b;
+    }
+
+    .col-desc {
+        width: 45%;
+        font-weight: bold;
+        color: #0f172a;
+    }
+
+    .col-qty {
+        width: 15%;
+        text-align: center;
+    }
+
+    .col-rate {
+        width: 15%;
+        text-align: right;
+    }
+
+    .col-amount {
+        width: 20%;
+        text-align: right;
+        font-weight: bold;
+        color: #0f172a;
+    }
+
+    /* Total block */
+    .totals-container {
+        float: right;
+        width: 40%;
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 35px;
+    }
+
+    .total-row {
+        font-size: 8.5pt;
+        color: #64748b;
+        margin-bottom: 5px;
+    }
+
+    .total-row-grand {
+        font-size: 11pt;
+        font-weight: bold;
+        color: #0f172a;
+        border-top: 1px solid #cbd5e1;
+        padding-top: 8px;
+        margin-top: 5px;
+    }
+
+    .total-label {
+        float: left;
+    }
+
+    .total-val {
+        float: right;
+    }
+
+    /* Signatures Section */
+    .signatures-container {
+        margin-top: 40px;
+    }
+
+    .signature-box {
+        float: left;
+        width: 46%;
+        margin-right: 8%;
+    }
+
+    .signature-box.last {
+        margin-right: 0;
+    }
+
+    .signature-title {
+        font-size: 8pt;
+        font-weight: bold;
+        text-transform: uppercase;
+        color: #64748b;
+        letter-spacing: 0.5px;
+        margin-bottom: 40px;
+    }
+
+    .signature-line {
+        border-bottom: 1px dashed #cbd5e1;
+        margin-bottom: 8px;
+    }
+
+    .signature-field {
+        font-size: 8pt;
+        color: #475569;
+        margin-bottom: 3px;
+    }
+
+    .signature-field-label {
+        color: #94a3b8;
+    }
+</style>
+</head>
+<body>
+
+    <!-- BRANDING & METADATA -->
+    <div class="header-container clearfix">
+        <div class="vendor-info">
+            <h1 class="vendor-name">{{ doc.vendor.name }}</h1>
+            <p class="vendor-tagline">{{ doc.vendor.tagline }}</p>
+            <div class="vendor-details">
+                Location: {{ doc.vendor.location }}<br>
+                Phone: {{ doc.vendor.phone }}<br>
+                Email: {{ doc.vendor.email }}
+            </div>
+        </div>
+
+        <div class="doc-meta">
+            <div class="doc-type {% if doc.doc_type == 'INVOICE' %}invoice{% endif %}">
+                {{ doc.doc_type }}
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Reference No:</span>
+                <span class="meta-value">{{ doc.reference_no }}</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Date:</span>
+                <span class="meta-value">{{ doc.issue_date }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- CLIENT CARD -->
+    <div class="client-card clearfix">
+        <h3 class="client-title">CLIENT DETAILS</h3>
+        <div class="client-left">
+            <span style="font-size: 8pt; color: #64748b; text-transform: uppercase;">Attention:</span><br>
+            <strong style="font-size: 10pt; color: #0f172a;">{{ doc.client.attention }}</strong><br>
+            <strong style="font-size: 10.5pt; color: #0f172a;">{{ doc.client.name }}</strong>
+        </div>
+        <div class="client-right">
+            <span style="font-size: 8pt; color: #64748b; text-transform: uppercase;">Location:</span><br>
+            <span style="font-size: 9.5pt; color: #334155;">{{ doc.client.location }}</span>
+        </div>
+    </div>
+
+    <!-- BILLABLE ITEMS TABLE -->
+    <table>
+        <thead>
+            <tr>
+                <th class="col-num">#</th>
+                <th class="col-desc">Description</th>
+                <th class="col-qty">Quantity</th>
+                <th class="col-rate">Rate</th>
+                {% if doc.doc_type == 'INVOICE' %}
+                <th class="col-amount">Amount</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in doc.items %}
+            <tr>
+                <td class="col-num">{{ loop.index }}</td>
+                <td class="col-desc">{{ item.description }}</td>
+                <td class="col-qty">{{ item.unit_label }}</td>
+                <td class="col-rate">{{ doc.currency }} {{ "{:,.2f}".format(item.rate) }}</td>
+                {% if doc.doc_type == 'INVOICE' %}
+                <td class="col-amount">{{ doc.currency }} {{ "{:,.2f}".format(item.amount) }}</td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- TOTALS BLOCK -->
+    {% if doc.doc_type == 'INVOICE' %}
+    <div class="clearfix">
+        <div class="totals-container clearfix">
+            <div class="total-row clearfix">
+                <span class="total-label">Subtotal:</span>
+                <span class="total-val">{{ doc.currency }} {{ "{:,.2f}".format(total_amount) }}</span>
+            </div>
+            <div class="total-row-grand clearfix">
+                <span class="total-label">Total Due:</span>
+                <span class="total-val" style="color: #4f46e5;">{{ doc.currency }} {{ "{:,.2f}".format(total_amount) }}</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- SIGN-OFF SIGNATURE STAMPS -->
+    <div class="signatures-container clearfix">
+        <!-- Vendor Signature Box -->
+        <div class="signature-box">
+            <div class="signature-title">Vendor Authorised Signatory</div>
+            <div class="signature-line"></div>
+            <div class="signature-field">
+                <span class="signature-field-label">Name:</span> 
+                <strong>{{ doc.vendor.name }} Representative</strong>
+            </div>
+            <div class="signature-field">
+                <span class="signature-field-label">Date:</span> 
+                {{ doc.issue_date }}
+            </div>
+            <div class="signature-field">
+                <span class="signature-field-label">Official Stamp:</span> 
+                ___________________________
+            </div>
+        </div>
+
+        <!-- Client Signature Box -->
+        <div class="signature-box last">
+            <div class="signature-title">Client Authorised Signatory</div>
+            <div class="signature-line"></div>
+            <div class="signature-field">
+                <span class="signature-field-label">Name:</span> 
+                <strong>{{ doc.client.attention }}</strong>
+            </div>
+            <div class="signature-field">
+                <span class="signature-field-label">Date:</span> 
+                {{ doc.issue_date }}
+            </div>
+            <div class="signature-field">
+                <span class="signature-field-label">Official Stamp:</span> 
+                ___________________________
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
