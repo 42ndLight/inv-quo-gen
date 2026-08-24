@@ -21,10 +21,11 @@ const currentDoc = ref({
   reference_no: '',
   issue_date: '',
   currency: 'KSh',
+  show_total: 'NO',
   items: [],
-  vendor_signatory_name: 'Dean Kinyanjui',
+  vendor_signatory_name: '',
   vendor_signatory_date: '',
-  client_signatory_name: 'The Club Manager',
+  client_signatory_name: '',
   client_signatory_date: ''
 })
 
@@ -53,12 +54,12 @@ const getFormattedDate = (date = new Date()) => {
   ]
   const month = monthNames[date.getMonth()]
   const year = date.getFullYear()
-  
+
   let suffix = 'th'
   if (day === 1 || day === 21 || day === 31) suffix = 'st'
   else if (day === 2 || day === 22) suffix = 'nd'
   else if (day === 3 || day === 23) suffix = 'rd'
-  
+
   return `${day}${suffix} ${month} ${year}`
 }
 
@@ -77,7 +78,7 @@ const getVendorInitials = (vendorName) => {
 const fetchData = async () => {
   isLoading.value = true
   isOffline.value = await api.checkHealth() === false
-  
+
   try {
     vendors.value = await api.getVendors()
     clients.value = await api.getClients()
@@ -96,18 +97,18 @@ onMounted(() => {
 // Auto-fill Reference Number
 const generateReferenceNumber = () => {
   if (!currentDoc.value.vendor_id || currentDoc.value.id) return
-  
+
   const vendor = vendors.value.find(v => v.id === Number(currentDoc.value.vendor_id))
   if (!vendor) return
 
   const initials = getVendorInitials(vendor.name)
   const typeCode = currentDoc.value.doc_type === 'QUOTATION' ? 'QUO' : 'INV'
   const year = new Date().getFullYear()
-  
+
   // Find seq number for similar documents
   const seq = documents.value.filter(d => d.doc_type === currentDoc.value.doc_type).length + 1
   const padSeq = String(seq).padStart(3, '0')
-  
+
   currentDoc.value.reference_no = `${initials}/${typeCode}/${year}/${padSeq}`
 }
 
@@ -147,6 +148,21 @@ const docTotal = computed(() => {
   return currentDoc.value.items.reduce((sum, item) => sum + Number(item.amount || 0), 0)
 })
 
+// Determine whether to display the total/amount column based on user selection.
+// Invoices always show totals. Quotations have exactly two persisted states:
+// show_total === 'YES' -> show total, anything else (including legacy 'AUTO') -> hidden.
+const showTotalForCurrentDoc = computed(() => {
+  if (currentDoc.value.doc_type === 'INVOICE') return true
+  return currentDoc.value.show_total === 'YES'
+})
+
+// Helper to decide whether any document (including from dashboard lists)
+// should render its total/amount column, based on its persisted show_total value.
+const shouldShowTotalForDocument = (doc) => {
+  if (doc.doc_type === 'INVOICE') return true
+  return doc.show_total === 'YES'
+}
+
 // Dashboard Stats
 const stats = computed(() => {
   const total = documents.value.length
@@ -174,12 +190,13 @@ const initNewDocument = (type = 'QUOTATION') => {
     reference_no: '',
     issue_date: getFormattedDate(),
     currency: 'KSh',
+    show_total: 'NO',
     items: [
-      { description: 'Motor Grader', unit_name: 'Hours', unit_value: 10.9, rate: 8500.00, amount: 92650.00 }
+      { description: 'Motor Grader', unit_name: 'Hours', unit_value: 10, rate: 8500.00, amount: 92650.00 }
     ],
-    vendor_signatory_name: 'Dean Kinyanjui',
+    vendor_signatory_name: '',
     vendor_signatory_date: getFormattedDate(),
-    client_signatory_name: 'The Club Manager',
+    client_signatory_name: '',
     client_signatory_date: getFormattedDate()
   }
   generateReferenceNumber()
@@ -190,6 +207,7 @@ const initNewDocument = (type = 'QUOTATION') => {
 const editDocument = (doc) => {
   currentDoc.value = {
     ...doc,
+    show_total: doc.show_total === 'YES' ? 'YES' : 'NO',
     items: doc.items.map(item => {
       // parse unit_value and unit_name from unit_label e.g. "10.9 Hours"
       let unit_name = 'Hours'
@@ -228,6 +246,7 @@ const saveDocument = async () => {
     reference_no: currentDoc.value.reference_no,
     issue_date: currentDoc.value.issue_date,
     currency: currentDoc.value.currency,
+    show_total: currentDoc.value.doc_type === 'INVOICE' ? 'AUTO' : (currentDoc.value.show_total === 'YES' ? 'YES' : 'NO'),
     items: currentDoc.value.items.map((item, index) => ({
       item_order: index + 1,
       description: item.description,
@@ -259,7 +278,7 @@ const saveDocument = async () => {
 // Delete Document
 const deleteDoc = async (id) => {
   if (!confirm('Are you sure you want to delete this document?')) return
-  
+
   isLoading.value = true
   try {
     await api.deleteDocument(id)
@@ -286,7 +305,7 @@ const convertToInvoice = async (id) => {
   }
 }
 
-// Download PDF file
+// Download PDF file (uses saved show_total preference)
 const downloadPDF = async (doc) => {
   isLoading.value = true
   try {
@@ -358,13 +377,13 @@ const getDocTotalAmount = (doc) => {
       </div>
 
       <div class="flex items-center space-x-2">
-        <button 
+        <button
           @click="initNewDocument('QUOTATION')"
           class="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600 transition"
         >
           + New Quotation
         </button>
-        <button 
+        <button
           @click="initNewDocument('INVOICE')"
           class="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-indigo-700 bg-indigo-50 rounded-lg shadow-sm hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600 transition"
         >
@@ -478,10 +497,10 @@ const getDocTotalAmount = (doc) => {
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                   <button @click="editDocument(doc)" class="text-indigo-600 hover:text-indigo-900">Edit</button>
-                  
-                  <button 
-                    v-if="doc.doc_type === 'QUOTATION'" 
-                    @click="convertToInvoice(doc.id)" 
+
+                  <button
+                    v-if="doc.doc_type === 'QUOTATION'"
+                    @click="convertToInvoice(doc.id)"
                     class="text-emerald-600 hover:text-emerald-900"
                     title="Convert Quotation to Invoice"
                   >
@@ -503,7 +522,7 @@ const getDocTotalAmount = (doc) => {
 
     <!-- TAB 2: EDITOR & PREVIEW -->
     <div v-if="activeTab === 'editor'" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-      
+
       <!-- Editor Form (Hidden in Print) -->
       <div class="lg:col-span-5 bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-6 print:hidden">
         <h3 class="text-lg font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center justify-between">
@@ -517,7 +536,7 @@ const getDocTotalAmount = (doc) => {
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Doc Type</label>
-              <select 
+              <select
                 v-model="currentDoc.doc_type"
                 class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
@@ -527,8 +546,8 @@ const getDocTotalAmount = (doc) => {
             </div>
             <div>
               <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Currency</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 v-model="currentDoc.currency"
                 class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
@@ -539,8 +558,8 @@ const getDocTotalAmount = (doc) => {
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Ref Number</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 v-model="currentDoc.reference_no"
                 placeholder="e.g. DK/QUO/2026/004"
                 class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
@@ -548,8 +567,8 @@ const getDocTotalAmount = (doc) => {
             </div>
             <div>
               <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Issue Date</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 v-model="currentDoc.issue_date"
                 class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
@@ -564,7 +583,7 @@ const getDocTotalAmount = (doc) => {
                 + Create Vendor
               </button>
             </div>
-            <select 
+            <select
               v-model="currentDoc.vendor_id"
               class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
@@ -582,7 +601,7 @@ const getDocTotalAmount = (doc) => {
                 + Create Client
               </button>
             </div>
-            <select 
+            <select
               v-model="currentDoc.client_id"
               class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
@@ -596,7 +615,7 @@ const getDocTotalAmount = (doc) => {
           <div>
             <div class="flex items-center justify-between mb-2">
               <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Line Items</label>
-              <button 
+              <button
                 @click="addLineItem"
                 class="inline-flex items-center text-xs text-indigo-600 hover:text-indigo-500 font-medium"
               >
@@ -607,7 +626,7 @@ const getDocTotalAmount = (doc) => {
             <div class="space-y-3">
               <div v-for="(item, idx) in currentDoc.items" :key="idx" class="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2 relative">
                 <!-- Close Button -->
-                <button 
+                <button
                   @click="removeLineItem(idx)"
                   class="absolute top-2 right-2 text-slate-400 hover:text-rose-600"
                   title="Remove item"
@@ -618,8 +637,8 @@ const getDocTotalAmount = (doc) => {
                 </button>
 
                 <div>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     v-model="item.description"
                     placeholder="Item description (e.g. Motor Grader)"
                     class="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-indigo-500"
@@ -629,8 +648,8 @@ const getDocTotalAmount = (doc) => {
                 <div class="grid grid-cols-3 gap-2">
                   <div>
                     <span class="block text-[10px] text-slate-400">Qty / Value</span>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       step="0.01"
                       v-model="item.unit_value"
                       @input="calculateItemAmount(item)"
@@ -639,8 +658,8 @@ const getDocTotalAmount = (doc) => {
                   </div>
                   <div>
                     <span class="block text-[10px] text-slate-400">Unit Type</span>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       v-model="item.unit_name"
                       placeholder="Hours"
                       class="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-indigo-500"
@@ -648,8 +667,8 @@ const getDocTotalAmount = (doc) => {
                   </div>
                   <div>
                     <span class="block text-[10px] text-slate-400">Rate</span>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       v-model="item.rate"
                       @input="calculateItemAmount(item)"
                       class="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-indigo-500 font-medium"
@@ -657,30 +676,45 @@ const getDocTotalAmount = (doc) => {
                   </div>
                 </div>
 
-                <div v-if="currentDoc.doc_type === 'INVOICE'" class="text-right text-xs font-bold text-slate-700">
+                <div v-if="showTotalForCurrentDoc" class="text-right text-xs font-bold text-slate-700">
                   Amount: {{ currentDoc.currency }} {{ (item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
                 </div>
               </div>
             </div>
           </div>
 
+          <!-- Quotation total display option -->
+          <div v-if="currentDoc.doc_type === 'QUOTATION'" class="border-t border-slate-100 pt-3 space-y-3">
+            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Amount Display</label>
+            <div class="flex items-center space-x-6">
+              <label class="inline-flex items-center space-x-2 text-sm text-slate-700 cursor-pointer">
+                <input type="radio" value="NO" v-model="currentDoc.show_total" class="text-indigo-600 focus:ring-indigo-500" />
+                <span>Hide total</span>
+              </label>
+              <label class="inline-flex items-center space-x-2 text-sm text-slate-700 cursor-pointer">
+                <input type="radio" value="YES" v-model="currentDoc.show_total" class="text-indigo-600 focus:ring-indigo-500" />
+                <span>Show total</span>
+              </label>
+            </div>
+          </div>
+
           <!-- Signatory Names -->
           <div class="border-t border-slate-100 pt-3 space-y-4">
             <h4 class="text-xs font-bold text-slate-900 uppercase">Authorised Signatories</h4>
-            
+
             <div class="grid grid-cols-2 gap-4">
               <div>
                 <label class="block text-[10px] font-semibold text-slate-500 uppercase">Vendor Signatory</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   v-model="currentDoc.vendor_signatory_name"
                   class="w-full rounded border border-slate-300 px-2 py-1 text-xs"
                 />
               </div>
               <div>
                 <label class="block text-[10px] font-semibold text-slate-500 uppercase">Client Signatory</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   v-model="currentDoc.client_signatory_name"
                   class="w-full rounded border border-slate-300 px-2 py-1 text-xs"
                 />
@@ -690,14 +724,14 @@ const getDocTotalAmount = (doc) => {
         </div>
 
         <div class="border-t border-slate-100 pt-4 flex space-x-3">
-          <button 
+          <button
             @click="saveDocument"
             class="flex-1 inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-semibold rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
             Save Document
           </button>
-          <button 
-            @click="window.print()" 
+          <button
+            @click="window.print()"
             class="inline-flex justify-center items-center px-4 py-2 border border-slate-300 text-sm font-semibold rounded-lg text-slate-700 bg-white hover:bg-slate-50"
           >
             Print
@@ -707,21 +741,21 @@ const getDocTotalAmount = (doc) => {
 
       <!-- Live Printable Preview Container -->
       <div class="lg:col-span-7 bg-white border border-slate-200 rounded-xl p-8 shadow-sm flex flex-col justify-between print:border-none print:shadow-none print:p-0 min-h-[29.7cm] w-full max-w-[21cm] mx-auto text-[13px] leading-relaxed">
-        
+
         <!-- TOP BRANDING & DETAILS -->
         <div>
           <div class="flex justify-between items-start border-b-2 border-slate-200 pb-5 mb-6">
             <div>
               <h1 class="text-xl font-bold uppercase text-slate-900 tracking-wide">
-                {{ selectedVendor?.name || 'Dean.K Plants and Materials' }}
+                {{ selectedVendor?.name || 'Plants and Materials' }}
               </h1>
               <p class="text-indigo-600 font-bold text-xs uppercase tracking-wider mb-2">
                 {{ selectedVendor?.tagline || 'Heavy Equipment Hire - Plant & Machinery' }}
               </p>
               <div class="text-xs text-slate-500 space-y-0.5">
-                <p>Location: {{ selectedVendor?.location || 'Juja, Kiambu County' }}</p>
-                <p>Phone: {{ selectedVendor?.phone || '+254 716 874 161' }}</p>
-                <p>Email: {{ selectedVendor?.email || 'DeanKinyanjuik@gmail.com' }}</p>
+                <p>Location: {{ selectedVendor?.location || 'Kenya' }}</p>
+                <p>Phone: {{ selectedVendor?.phone || '+254 700 000 000' }}</p>
+                <p>Email: {{ selectedVendor?.email || 'user@email.com' }}</p>
               </div>
             </div>
 
@@ -746,11 +780,11 @@ const getDocTotalAmount = (doc) => {
               <div>
                 <p class="text-xs text-slate-500 uppercase">Attention:</p>
                 <p class="font-bold text-slate-900 text-sm">{{ selectedClient?.attention || 'The Club Manager' }}</p>
-                <p class="font-bold text-slate-900 text-sm mt-1">{{ selectedClient?.name || 'Ruiru Golf Club' }}</p>
+                <p class="font-bold text-slate-900 text-sm mt-1">{{ selectedClient?.name || 'Golf Club' }}</p>
               </div>
               <div class="text-right">
                 <p class="text-xs text-slate-500 uppercase">Location:</p>
-                <p class="font-medium text-slate-800 text-sm">{{ selectedClient?.location || 'Ruiru, Kiambu County, Kenya' }}</p>
+                <p class="font-medium text-slate-800 text-sm">{{ selectedClient?.location || 'Kenya' }}</p>
               </div>
             </div>
           </div>
@@ -763,7 +797,7 @@ const getDocTotalAmount = (doc) => {
                 <th class="px-4 py-2 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Description</th>
                 <th class="px-4 py-2 text-center text-xs font-bold text-slate-600 uppercase tracking-wider w-28">Quantity</th>
                 <th class="px-4 py-2 text-right text-xs font-bold text-slate-600 uppercase tracking-wider w-32">Rate ({{ currentDoc.currency }})</th>
-                <th v-if="currentDoc.doc_type === 'INVOICE'" class="px-4 py-2 text-right text-xs font-bold text-slate-600 uppercase tracking-wider w-36">Amount ({{ currentDoc.currency }})</th>
+                <th v-if="showTotalForCurrentDoc" class="px-4 py-2 text-right text-xs font-bold text-slate-600 uppercase tracking-wider w-36">Amount ({{ currentDoc.currency }})</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-200 bg-white">
@@ -772,17 +806,17 @@ const getDocTotalAmount = (doc) => {
                 <td class="px-4 py-2.5 font-semibold text-slate-900">{{ item.description || 'Description pending...' }}</td>
                 <td class="px-4 py-2.5 text-center text-slate-700 font-medium">{{ item.unit_value }} {{ item.unit_name }}</td>
                 <td class="px-4 py-2.5 text-right font-medium text-slate-700">{{ Number(item.rate || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) }}</td>
-                <td v-if="currentDoc.doc_type === 'INVOICE'" class="px-4 py-2.5 text-right font-bold text-slate-900">{{ Number(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) }}</td>
+                <td v-if="showTotalForCurrentDoc" class="px-4 py-2.5 text-right font-bold text-slate-900">{{ Number(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) }}</td>
               </tr>
               <!-- Empty state fallback inside table -->
               <tr v-if="currentDoc.items.length === 0">
-                <td :colspan="currentDoc.doc_type === 'INVOICE' ? 5 : 4" class="px-4 py-8 text-center text-slate-400 italic">No line items added yet.</td>
+                <td :colspan="showTotalForCurrentDoc ? 5 : 4" class="px-4 py-8 text-center text-slate-400 italic">No line items added yet.</td>
               </tr>
             </tbody>
           </table>
 
           <!-- TOTAL CALCULATION BLOCK -->
-          <div v-if="currentDoc.doc_type === 'INVOICE'" class="flex justify-end mb-10">
+          <div v-if="showTotalForCurrentDoc" class="flex justify-end mb-10">
             <div class="w-72 bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
               <div class="flex justify-between items-center text-xs text-slate-500">
                 <span>Subtotal:</span>
@@ -829,7 +863,7 @@ const getDocTotalAmount = (doc) => {
           <!-- DOCUMENT FOOTER (REPEATS CONTACT DETAILS + REF NO) -->
           <div class="border-t border-slate-200 pt-4 text-center text-[10px] text-slate-400 flex justify-between items-center">
             <div>
-              <span>{{ selectedVendor?.location || 'Juja, Kiambu County' }} | Phone: {{ selectedVendor?.phone || '+254 716 874 161' }} | Email: {{ selectedVendor?.email || 'DeanKinyanjuik@gmail.com' }}</span>
+              <span>{{ selectedVendor?.location || 'Kenya' }} | Phone: {{ selectedVendor?.phone || '+254 700 000 000' }} | Email: {{ selectedVendor?.email || 'user@email.com' }}</span>
             </div>
             <div class="font-bold">
               <span>{{ currentDoc.reference_no }}</span>
@@ -890,11 +924,11 @@ const getDocTotalAmount = (doc) => {
     <div v-if="showVendorModal" class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/40 flex items-center justify-center p-4 print:hidden">
       <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-xl space-y-4">
         <h3 class="text-lg font-bold text-slate-900 border-b pb-2">Add Vendor Profile</h3>
-        
+
         <div class="space-y-3 text-sm">
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase">Vendor Name</label>
-            <input type="text" v-model="newVendor.name" placeholder="e.g. Dean.K Plants and Materials" class="mt-1 w-full rounded border px-3 py-2" />
+            <input type="text" v-model="newVendor.name" placeholder="e.g.Plants and Materials" class="mt-1 w-full rounded border px-3 py-2" />
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase">Tagline</label>
@@ -902,15 +936,15 @@ const getDocTotalAmount = (doc) => {
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase">Location</label>
-            <input type="text" v-model="newVendor.location" placeholder="e.g. Juja, Kiambu County" class="mt-1 w-full rounded border px-3 py-2" />
+            <input type="text" v-model="newVendor.location" placeholder="e.g. Kenya" class="mt-1 w-full rounded border px-3 py-2" />
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase">Phone Number</label>
-            <input type="text" v-model="newVendor.phone" placeholder="e.g. +254 716 874 161" class="mt-1 w-full rounded border px-3 py-2" />
+            <input type="text" v-model="newVendor.phone" placeholder="e.g. +254 700 000 000" class="mt-1 w-full rounded border px-3 py-2" />
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase">Email Address</label>
-            <input type="email" v-model="newVendor.email" placeholder="e.g. DeanKinyanjuik@gmail.com" class="mt-1 w-full rounded border px-3 py-2" />
+            <input type="email" v-model="newVendor.email" placeholder="e.g. user@email.com" class="mt-1 w-full rounded border px-3 py-2" />
           </div>
         </div>
 
@@ -925,11 +959,11 @@ const getDocTotalAmount = (doc) => {
     <div v-if="showClientModal" class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/40 flex items-center justify-center p-4 print:hidden">
       <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-xl space-y-4">
         <h3 class="text-lg font-bold text-slate-900 border-b pb-2">Add Client Profile</h3>
-        
+
         <div class="space-y-3 text-sm">
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase">Client Company Name</label>
-            <input type="text" v-model="newClient.name" placeholder="e.g. Ruiru Golf Club" class="mt-1 w-full rounded border px-3 py-2" />
+            <input type="text" v-model="newClient.name" placeholder="e.g. Golf Club" class="mt-1 w-full rounded border px-3 py-2" />
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase">Attention To (Representative)</label>
@@ -937,7 +971,7 @@ const getDocTotalAmount = (doc) => {
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase">Location Address</label>
-            <input type="text" v-model="newClient.location" placeholder="e.g. Ruiru, Kiambu County, Kenya" class="mt-1 w-full rounded border px-3 py-2" />
+            <input type="text" v-model="newClient.location" placeholder="e.g. Kenya" class="mt-1 w-full rounded border px-3 py-2" />
           </div>
         </div>
 
@@ -958,7 +992,7 @@ const getDocTotalAmount = (doc) => {
     size: A4;
     margin: 1.5cm;
   }
-  
+
   /* Reset document flow for print layout output */
   body, html {
     background-color: #fff !important;

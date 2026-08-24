@@ -36,6 +36,7 @@ class Document(Base):
     reference_no = Column(String(100), unique=True, nullable=False)
     issue_date = Column(String(50), nullable=False)
     currency = Column(String(10), default="KSh")
+    show_total = Column(String(10), default="AUTO")  # AUTO follows doc_type; YES/NO override
     created_at = Column(TIMESTAMP, server_default=func.now())
 
     # Check constraints

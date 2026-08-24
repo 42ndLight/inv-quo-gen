@@ -325,7 +325,7 @@
                 <th class="col-desc">Description</th>
                 <th class="col-qty">Quantity</th>
                 <th class="col-rate">Rate</th>
-                {% if doc.doc_type == 'INVOICE' %}
+                {% if show_total %}
                 <th class="col-amount">Amount</th>
                 {% endif %}
             </tr>
@@ -337,7 +337,7 @@
                 <td class="col-desc">{{ item.description }}</td>
                 <td class="col-qty">{{ item.unit_label }}</td>
                 <td class="col-rate">{{ doc.currency }} {{ "{:,.2f}".format(item.rate) }}</td>
-                {% if doc.doc_type == 'INVOICE' %}
+                {% if show_total %}
                 <td class="col-amount">{{ doc.currency }} {{ "{:,.2f}".format(item.amount) }}</td>
                 {% endif %}
             </tr>
@@ -346,7 +346,7 @@
     </table>
 
     <!-- TOTALS BLOCK -->
-    {% if doc.doc_type == 'INVOICE' %}
+    {% if show_total %}
     <div class="clearfix">
         <div class="totals-container clearfix">
             <div class="total-row clearfix">

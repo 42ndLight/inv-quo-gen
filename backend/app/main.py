@@ -1,6 +1,7 @@
+import os
 import re
 from datetime import datetime
-from fastapi import FastAPI, Depends, HTTPException, Response
+from fastapi import FastAPI, Depends, HTTPException, Response, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
@@ -138,7 +139,8 @@ def create_document(doc: schemas.DocumentCreate, db: Session = Depends(get_db)):
         doc_type=doc.doc_type,
         reference_no=ref_no,
         issue_date=doc.issue_date,
-        currency=doc.currency
+        currency=doc.currency,
+        show_total=doc.show_total
     )
     db.add(db_doc)
     db.commit()
@@ -183,6 +185,7 @@ def update_document(document_id: int, doc_payload: schemas.DocumentUpdate, db: S
     db_doc.reference_no = doc_payload.reference_no
     db_doc.issue_date = doc_payload.issue_date
     db_doc.currency = doc_payload.currency
+    db_doc.show_total = doc_payload.show_total
 
     # Remove existing items and add updated ones
     db.query(models.DocumentItem).filter(models.DocumentItem.document_id == document_id).delete()
@@ -237,6 +240,7 @@ def convert_quotation_to_invoice(document_id: int, db: Session = Depends(get_db)
     # Update document type and reference code
     db_doc.doc_type = "INVOICE"
     db_doc.reference_no = new_reference
+    db_doc.show_total = "AUTO"  # Invoices always show totals
     
     db.commit()
     db.refresh(db_doc)
@@ -257,6 +261,32 @@ def get_document_pdf(document_id: int, db: Session = Depends(get_db)):
         # Clean reference number for filename
         safe_filename = db_doc.reference_no.replace("/", "_")
         
+        headers = {
+            "Content-Disposition": f'attachment; filename="{safe_filename}.pdf"'
+        }
+        return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PDF Generation Error: {str(e)}")
+
+
+# --- GENERIC HTML -> PDF CONVERSION ---
+@app.post("/api/convert-html-to-pdf")
+def convert_html_to_pdf(html_file: UploadFile = File(...)):
+    """
+    Upload any HTML file and receive it rendered back as a PDF.
+    """
+    allowed_types = ("text/html", "text/html; charset=utf-8", "application/xhtml+xml")
+    if html_file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type: {html_file.content_type}. Please upload an HTML file."
+        )
+
+    try:
+        html_bytes = html_file.file.read()
+        pdf_bytes = pdf_generator.generate_pdf_bytes_from_html(html_bytes)
+
+        safe_filename = os.path.splitext(html_file.filename or "document")[0]
         headers = {
             "Content-Disposition": f'attachment; filename="{safe_filename}.pdf"'
         }

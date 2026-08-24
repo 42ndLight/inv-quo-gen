@@ -65,12 +65,20 @@ class DocumentBase(BaseModel):
     reference_no: str = Field(..., max_length=100)
     issue_date: str = Field(..., max_length=50)
     currency: str = Field("KSh", max_length=10)
+    show_total: str = Field(default="AUTO", max_length=10)
 
     @field_validator("doc_type")
     @classmethod
     def validate_doc_type(cls, v):
         if v not in ["QUOTATION", "INVOICE"]:
             raise ValueError("doc_type must be either 'QUOTATION' or 'INVOICE'")
+        return v
+
+    @field_validator("show_total")
+    @classmethod
+    def validate_show_total(cls, v):
+        if v not in ["AUTO", "YES", "NO"]:
+            raise ValueError("show_total must be one of 'AUTO', 'YES', or 'NO'")
         return v
 
 class DocumentCreate(DocumentBase):
