@@ -1,7 +1,9 @@
 // API Service for Quotation and Invoice Generator
 // Connects to FastAPI backend, falls back to localStorage if backend is offline or for demo purposes.
 
-const BASE_URL = "http://localhost:8000/api";
+import { API_URL } from "../config.js";
+
+const BASE_URL = API_URL;
 
 // Helper to determine if we should use local storage fallback
 let useLocalStorageFallback = false;
