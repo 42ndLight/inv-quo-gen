@@ -40,11 +40,11 @@ def seed_data():
         # Seed default Vendor
         if db.query(models.Vendor).count() == 0:
             default_vendor = models.Vendor(
-                name="Dean.K Plants and Materials",
+                name="Plants and Materials",
                 tagline="Heavy Equipment Hire - Plant & Machinery",
-                location="Juja, Kiambu County",
-                phone="+254 716 874 161",
-                email="DeanKinyanjuik@gmail.com"
+                location="Juja,",
+                phone="+254 700 000 000",
+                email="user@email.com"
             )
             db.add(default_vendor)
             db.commit()
@@ -53,9 +53,9 @@ def seed_data():
         # Seed default Client
         if db.query(models.Client).count() == 0:
             default_client = models.Client(
-                name="Ruiru Golf Club",
-                location="Ruiru, Kiambu County, Kenya",
-                attention="The Club Manager"
+                name="Golf Club",
+                location="Kenya",
+                attention="Club Manager"
             )
             db.add(default_client)
             db.commit()
