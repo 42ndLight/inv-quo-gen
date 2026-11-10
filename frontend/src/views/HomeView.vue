@@ -352,6 +352,10 @@ const getDocTotalAmount = (doc) => {
   if (!doc.items) return 0
   return doc.items.reduce((sum, item) => sum + Number(item.amount), 0)
 }
+
+const handlePrint = () => {
+  window.print()
+}
 </script>
 
 <template>
@@ -731,7 +735,7 @@ const getDocTotalAmount = (doc) => {
             Save Document
           </button>
           <button
-            @click="window.print()"
+            @click="handlePrint"
             class="inline-flex justify-center items-center px-4 py-2 border border-slate-300 text-sm font-semibold rounded-lg text-slate-700 bg-white hover:bg-slate-50"
           >
             Print
