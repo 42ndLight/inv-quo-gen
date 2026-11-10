@@ -4,16 +4,12 @@
       "src": "frontend/package.json",
       "use": "@vercel/static-build",
       "config": { "distDir": "dist" }
-    },
-    {
-      "src": "backend/api/index.py",
-      "use": "@vercel/python"
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "backend/api/index.py"
+      "dest": "https://inv-quo-gen-production.up.railway.app/api/$1"
     },
     {
       "src": "/(.*)",
